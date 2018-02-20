@@ -221,7 +221,7 @@ def lambda_handler(event, context):
     source_bucket = string.split(key, '/', 1)[0]
 
     s3log = S3Log(logs_bucket, key)
-    cwrb = CloudWatchMetricsBuffer(
+    cwmb = CloudWatchMetricsBuffer(
         namespace=CW_NAMESPACE,
         dimensions=[
             {
@@ -240,10 +240,10 @@ def lambda_handler(event, context):
 
         for datapoint in filtered_datapoints:
             timestamp_iso = datapoint['TIMESTAMP_LOWRES_ISO']
-            if mc.get('RequestCount') is not None:
+            if mc.get('RequestCount'):
                 metric_name_suffix = 'RequestCount'
                 value = 1
-                cwrb.add_metric_datapoint(
+                cwmb.add_metric_datapoint(
                     metric_name="_".join(
                         [mc['MetricNamePrefix'], metric_name_suffix]
                     ),
@@ -252,11 +252,11 @@ def lambda_handler(event, context):
                     value=value,
                 )
 
-            if (mc.get('TotalRequestTime') is not None and
+            if (mc.get('TotalRequestTime') and
                 datapoint['TOTAL_TIME'].isdigit()):
                 metric_name_suffix = 'TotalRequestTime'
                 value = int(datapoint['TOTAL_TIME'])
-                cwrb.add_metric_datapoint(
+                cwmb.add_metric_datapoint(
                     metric_name="_".join(
                         [mc['MetricNamePrefix'], metric_name_suffix]
                     ),
@@ -265,11 +265,11 @@ def lambda_handler(event, context):
                     value=value,
                 )
 
-            if (mc.get('TurnAroundTime') is not None and
+            if (mc.get('TurnAroundTime') and
                 datapoint['TURN_AROUND_TIME'].isdigit()):
                 metric_name_suffix = 'TurnAroundTime'
                 value = int(datapoint['TURN_AROUND_TIME'])
-                cwrb.add_metric_datapoint(
+                cwmb.add_metric_datapoint(
                     metric_name="_".join(
                         [mc['MetricNamePrefix'], metric_name_suffix]
                     ),
@@ -278,11 +278,11 @@ def lambda_handler(event, context):
                     value=value,
                 )
 
-            if (mc.get('ObjectSize') is not None and
+            if (mc.get('ObjectSize') and
                 datapoint['OBJECT_SIZE'].isdigit()):
                 metric_name_suffix = 'ObjectSize'
                 value = int(datapoint['OBJECT_SIZE'])
-                cwrb.add_metric_datapoint(
+                cwmb.add_metric_datapoint(
                     metric_name="_".join(
                         [mc['MetricNamePrefix'], metric_name_suffix]
                     ),
@@ -291,9 +291,9 @@ def lambda_handler(event, context):
                     value=value,
                 )
 
-    cwrb.flush()
+    cwmb.flush()
 
-    cwrb2 = CloudWatchMetricsBuffer(
+    cwmb2 = CloudWatchMetricsBuffer(
         namespace='CloudWatch API calls',
         dimensions=[
             {
@@ -303,16 +303,16 @@ def lambda_handler(event, context):
         ]
     )
 
-    cwrb2.add_metric_datapoint(
+    cwmb2.add_metric_datapoint(
         metric_name='PutMetricData_RequestsCount',
         timestamp_iso=datetime.utcnow().replace(
             second=0,
             microsecond=0
         ).isoformat('T'),
         unit='Count',
-        value=float(cwrb.get_requests_counter()),
+        value=float(cwmb.get_requests_counter()),
     )
 
-    cwrb2.flush()
+    cwmb2.flush()
 
     return True
